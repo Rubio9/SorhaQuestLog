@@ -1397,7 +1397,7 @@ end
 
 --Minion
 function ScenarioTracker:CreateMinionLayout()
-	fraMinionAnchor = SorhaQuestLog:doCreateFrame("FRAME","SQLScenarioQuestsMinionAnchor",UIParent,200,20,1,"BACKGROUND",1, db.MinionLocation.Point, UIParent, db.MinionLocation.RelativePoint, db.MinionLocation.X, db.MinionLocation.Y, 1)
+	fraMinionAnchor = SorhaQuestLog:doCreateFrame("FRAME","SQLScenarioQuestsMinionAnchor",UIParent,200,20,1,"BACKGROUND",1, db.MinionLocation.Point, UIParent, db.MinionLocation.RelativePoint, db.MinionLocation.X, db.MinionLocation.Y, 1, "BackdropTemplate")
 	fraMinionAnchor:SetMovable(true)
 	fraMinionAnchor:SetClampedToScreen(true)
 	fraMinionAnchor:RegisterForDrag("LeftButton")
@@ -1434,7 +1434,7 @@ function ScenarioTracker:CreateMinionLayout()
 	fraMinionAnchor:SetBackdropBorderColor(0, 0, 0, 0)
 
 	-- scenario Anchor
-	fraMinionAnchor.fraScenariosAnchor = SorhaQuestLog:doCreateLooseFrame("FRAME","SQLSenarioQuestsAnchor",fraMinionAnchor, fraMinionAnchor:GetWidth(),1,1,"LOW",1,1)
+	fraMinionAnchor.fraScenariosAnchor = SorhaQuestLog:doCreateLooseFrame("FRAME","SQLSenarioQuestsAnchor",fraMinionAnchor, fraMinionAnchor:GetWidth(),1,1,"LOW",1,1, "BackdropTemplate")
 	fraMinionAnchor.fraScenariosAnchor:SetPoint("TOPLEFT", fraMinionAnchor, "TOPLEFT", 0, 0);
 	fraMinionAnchor.fraScenariosAnchor:SetBackdropColor(0, 0, 0, 0)
 	fraMinionAnchor.fraScenariosAnchor:SetBackdropBorderColor(0,0,0,0)
@@ -1455,7 +1455,7 @@ function ScenarioTracker:CreateMinionLayout()
 	fraMinionAnchor.objFontString:SetText("");
 	fraMinionAnchor.objFontString:SetShadowOffset(1, -1)
 	
-	fraMinionAnchor.BorderFrame = SorhaQuestLog:doCreateFrame("FRAME","SQLScenarioQuestsMinionBorder", fraMinionAnchor, 100,20,1,"BACKGROUND",1, "TOPLEFT", fraMinionAnchor, "TOPLEFT", -6, 6, 1)
+	fraMinionAnchor.BorderFrame = SorhaQuestLog:doCreateFrame("FRAME","SQLScenarioQuestsMinionBorder", fraMinionAnchor, 100,20,1,"BACKGROUND",1, "TOPLEFT", fraMinionAnchor, "TOPLEFT", -6, 6, 1, "BackdropTemplate")
 	fraMinionAnchor.BorderFrame:SetBackdrop({bgFile = LSM:Fetch("background", dbCore.BackgroundTexture), tile = false, tileSize = 16,	edgeFile = LSM:Fetch("border", dbCore.BorderTexture), edgeSize = 16,	insets = {left = 5, right = 3, top = 3, bottom = 3}})
 	fraMinionAnchor.BorderFrame:SetBackdropColor(db.Colours.MinionBackGroundColour.r, db.Colours.MinionBackGroundColour.g, db.Colours.MinionBackGroundColour.b, db.Colours.MinionBackGroundColour.a)
 	fraMinionAnchor.BorderFrame:SetBackdropBorderColor(db.Colours.MinionBorderColour.r, db.Colours.MinionBorderColour.g, db.Colours.MinionBorderColour.b, db.Colours.MinionBorderColour.a)

@@ -788,7 +788,7 @@ function SorhaQuestLog:GetLogButton()
 		local strButtonName = strButtonPrefix .. intNumberOfLogButtons
 		
 		-- Create button
-		objButton = self:doCreateLooseFrame("BUTTON", strButtonName, UIParent, 10, 10, 1, "LOW", 1, 1)
+		objButton = self:doCreateLooseFrame("BUTTON", strButtonName, UIParent, 10, 10, 1, "LOW", 1, 1, "BackdropTemplate")
 		objButton:SetBackdrop({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 16,	edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 16,	insets = {left = 5, right = 3, top = 3, bottom = 5}})
 		objButton:SetBackdropColor(0, 0, 0, 0)
 		objButton:SetBackdropBorderColor(0, 0, 0, 0)		
@@ -856,7 +856,7 @@ function SorhaQuestLog:GetStatusBar()
 	local objStatusBar = tremove(tblStatusBarsCache)
 	if (objStatusBar == nil) then
 		intNumberUsedStatusBars = intNumberUsedStatusBars + 1
-		objStatusBar = CreateFrame("STATUSBAR", strStatusBarPrefix .. intNumberUsedStatusBars, UIParent)
+		objStatusBar = CreateFrame("STATUSBAR", strStatusBarPrefix .. intNumberUsedStatusBars, UIParent, "BackdropTemplate")
 		
 		objStatusBar.objFontString = objStatusBar:CreateFontString(nil, "OVERLAY");
 		objStatusBar.objFontString:SetPoint("TOPLEFT", objStatusBar, "TOPLEFT", 0, -0.5);

@@ -144,7 +144,7 @@ local tblQuestClickBindings = {
 local dicQuestTags = {
 	[ELITE] = "+",
 	[Enum.QuestTag.Group] = "g",
-	[Enum.QuestTag.Pvp] = "p",
+	[Enum.QuestTag.PvP] = "p",
 	[Enum.QuestTag.Raid] = "r",
 	[Enum.QuestTag.Raid10] = "r",
 	[Enum.QuestTag.Raid25] = "r",
@@ -159,7 +159,7 @@ local dicQuestTags = {
 local dicLongQuestTags = {
 	[ELITE] = ELITE,
 	[Enum.QuestTag.Group] = GROUP,
-	[Enum.QuestTag.Pvp] = PVP,
+	[Enum.QuestTag.PvP] = PVP,
 	[Enum.QuestTag.Raid] = RAID,
 	[Enum.QuestTag.Raid10] = RAID,
 	[Enum.QuestTag.Raid25] = RAID,
@@ -2118,14 +2118,16 @@ end
 local function zoneSortChooser(t)
 	return spairs(t, function(t,a,b) 
 		if (a and b) then
-			if (t[a].ID and t[a].ID == campaignZoneID) then
+			if	(t[a].ID and t[a].ID == campaignZoneID) then
 				return true
-			end
-			if (t[b].ID and t[b].ID == campaignZoneID) then
+			elseif	(t[b].ID and t[b].ID == campaignZoneID) then
 				return false
-			end
-			if (t[a].IsFakeZone == true or t[b].IsFakeZone == true) then
+			elseif	(t[a].IsFakeZone == true or t[b].IsFakeZone == true) then
 				return tostring(t[b].IsFakeZone) > tostring(t[a].IsFakeZone)			
+			elseif	(t[a].Title and t[a].Title == strZone) then
+				return false
+			elseif	(t[b].Title and t[b].Title == strZone) then
+				return true
 			else
 				return b > a
 			end
@@ -2596,13 +2598,14 @@ function SQLQuest:Update(newIndex)
 	if (self.IsWorldQuest) then
 		
 		local isInArea, isOnMap, numObjectives, taskName, displayAsObjective = GetTaskInfo(self.ID);
-		local tagID, tagName, worldQuestType, rarity, isElite, tradeskillLineIndex = GetQuestTagInfo(self.ID);
-		self.TagID = tagID;
-		if (isElite) then
+		local tagInfo = C_QuestLog.GetQuestTagInfo(self.ID);
+
+		self.TagID = tagInfo and tagInfo.tagID or nil;
+		if (tagInfo and tagInfo.isElite) then
 			self.TagID = ELITE
 		end
-		self.TagName = tagName;		
-		self.Index = GetQuestLogIndexByID(self.ID);
+		self.TagName = tagInfo and tagInfo.tagName or nil;
+		self.Index = C_QuestLog.GetLogIndexForQuestID(self.ID);
 		
 		self.Title = taskName;
 		if (self.Title == nil) then
@@ -2735,51 +2738,52 @@ function SQLQuest:Update(newIndex)
 
 	
 	else	
-		local title, level, suggestedGroup, isHeader, _, isComplete, frequency, questID, startEvent, displayQuestID, isOnMap, hasLocalPOI, isTask, isStory = GetQuestLogTitle(self.Index);	
-		local tagID, tagName, worldQuestType, rarity, isElite, tradeskillLineIndex = GetQuestTagInfo(questID);
-		self.TagID = tagID;
-		self.TagName = tagName;		
+		local questInfo = C_QuestLog.GetInfo(self.Index);
+		local tagInfo = C_QuestLog.GetQuestTagInfo(self.ID);
+
+		self.TagID = tagInfo and tagInfo.tagID or nil;
+		self.TagName = tagInfo and tagInfo.tagName or nil;
 		
-		self.Title = title;
+		self.Title = questInfo.title;
 		if (self.Title == nil) then
 			self.Title = UNKNOWN
 		end
 
 		if (self._FirstUpdate) then
-			SelectQuestLogEntry(self.Index);			
+			C_QuestLog.SetSelectedQuest(self.ID);
 			local _, questObjectives = GetQuestLogQuestText();
-			self.RequiredMoney = GetQuestLogRequiredMoney(self.Index);
+			self.RequiredMoney = C_QuestLog.GetRequiredMoney(self.Index);
 
 			self.ObjectiveDescription = questObjectives;
 			
 
 
-			self.Level = level;
-			self.SuggestedGroup = suggestedGroup;
-			self.Frequency = frequency;
+			self.Level = questInfo.level;
+			self.SuggestedGroup = questInfo.suggestedGroup;
+			self.Frequency = questInfo.frequency;
 
 
-			if (startEvent) then
+			if (questInfo.startEvent) then
 				self.StartsEvent = true;
 			end
 
-			if (displayQuestID) then
-				self.DisplayQuestID = true;
-			end
+--			if (displayQuestID) then
+--				self.DisplayQuestID = true;
+--			end
 
-			if (isOnMap) then
+			if (questInfo.isOnMap) then
 				self.IsOnMap = true;
 			end
 
-			if (hasLocalPOI) then
+			if (questInfo.hasLocalPOI) then
 				self.HaveLocalPOI = true;
 			end
 
-			if (isTask) then
+			if (questInfo.isTask) then
 				self.IsTask = true;
 			end
 
-			if (isStory) then
+			if (questInfo.isStory) then
 				self.IsStory = true;
 			end
 		end
@@ -2807,7 +2811,7 @@ function SQLQuest:Update(newIndex)
 		end
 		
 		if (self.IsTask ~= true) then
-			local isWatched = IsQuestWatched(self.Index);		
+			local isWatched = C_QuestLog.GetQuestWatchType(self.ID);
 			if (isWatched == nil) then
 				if (self.IsHidden == false) then
 					self:Hide();
@@ -3115,24 +3119,24 @@ end
 function SQLQuest:Hide()
 	self.IsHidden = true;
 	self.Changed = true;
-	RemoveQuestWatch(self.Index)
+	C_QuestLog.RemoveQuestWatch(self.ID)
 end
 
 function SQLQuest:Show()
 	self.IsHidden = false;
 	self.Changed = true;
-	AddQuestWatch(self.Index)
+	C_QuestLog.AddQuestWatch(self.ID)
 end
 
 function SQLQuest:IsDaily()
-	if (self.Frequency == 2) then
+	if (self.Frequency == Enum.QuestFrequency.Daily) then
 		return true;
 	end
 	return false;
 end
 
 function SQLQuest:IsWeekly()
-	if (self.Frequency == 3) then
+	if (self.Frequency == Enum.QuestFrequency.Weekly) then
 		return true;
 	end
 	return false;
@@ -3226,11 +3230,11 @@ function SQLZone:Update(newIndex)
 		self.Index = newIndex;
 	end
 
-	local title, _, _, isHeader, isCollapsed, _, _, questID = GetQuestLogTitle(self.Index);
+	local questInfo = C_QuestLog.GetInfo(self.Index);
 	
-	if (isHeader) then
-		self.Title = title;
-		self.ID = title;
+	if (questInfo.isHeader) then
+		self.Title = questInfo.title;
+		self.ID = questInfo.title;
 		if (self.Title == nil) then
 			self.Title = UNKNOWN;
 		end		
@@ -3368,12 +3372,12 @@ function SQLQuestLogData:Update()
     	quest.Keep = false;
 	end
 
-	local timers = {GetQuestTimers()};
+	local timers = {}; -- {GetQuestTimers()};
 	local tblTimers = {};
 	local trackedTimerCount = 0;
 
 	if (#timers > 0) then
-		for i = 1, GetNumQuestWatches() do
+		for i = 1, C_QuestLog.GetNumQuestWatches() do
 			local timerQuestID, _, _, _, _, _, _, _, failureTime, timeElapsed = GetQuestWatchInfo(i);
 			if ( not timerQuestID ) then
 				break;
@@ -3389,7 +3393,7 @@ function SQLQuestLogData:Update()
 		if (trackedTimerCount < #timers) then
 			for i=1,#timers, 1 do
 				local index = GetQuestIndexForTimer(i);
-				local _, _, _, _, _, _, _, timerQuestID = GetQuestLogTitle(index);	
+				local _, _, _, _, _, _, _, timerQuestID = C_QuestLog.GetTitleForLogIndex(index);
 				tblTimers[timerQuestID] = {['Elapsed'] = 0, ['Duration'] = timers[i], ['Tracked'] = false}
 			end
 		end
@@ -3397,7 +3401,7 @@ function SQLQuestLogData:Update()
 
 		
 		
-	local campaignId = C_CampaignInfo.GetCurrentCampaignID();
+	local campaignId = nil; 	-- C_CampaignInfo.GetCurrentCampaignID();
 	if (campaignId) then
 		local campaignInfo = C_CampaignInfo.GetCampaignInfo(campaignId);
 		self.ZoneList[campaignZoneID].Title = campaignInfo.name or "";
@@ -3405,13 +3409,14 @@ function SQLQuestLogData:Update()
 	
 	
 	
-	local numEntries, numQuests = GetNumQuestLogEntries();
+	local numEntries, numQuests = C_QuestLog.GetNumQuestLogEntries();
 	local zoneID = nil;
 	for i = 1, numEntries, 1 do
-		local title, _, _, isHeader, _, _, _, questID, _, _, isOnMap, _, _, isBounty, _, isHidden = GetQuestLogTitle(i);		
+		local questInfo = C_QuestLog.GetInfo(i);
+		local questID = questInfo.questID;
 
-		if (isHeader) then
-			zoneID = title;
+		if (questInfo.isHeader) then
+			zoneID = questInfo.title;
 			if (self.ZoneList[zoneID] == nil) then
 				self.ZoneList[zoneID] = SQLZone:new(i);
 				self.ZoneCount = self.ZoneCount + 1;
@@ -3424,7 +3429,7 @@ function SQLQuestLogData:Update()
 				self.ZoneList[zoneID].IsCollapsed = false;
 			end
 		else
-			if (not QuestUtils_IsQuestWorldQuest(questID) and (not isHidden and not isBounty)) then
+			if (not QuestUtils_IsQuestWorldQuest(questID) and ((not questInfo.isHidden and not questInfo.isBounty) or questInfo.isTask)) then
 				if (self.QuestList[questID] == nil) then
 					self.QuestList[questID] = SQLQuest:new(i, questID, false);
 					self.QuestCount = self.QuestCount + 1;
@@ -3459,9 +3464,9 @@ function SQLQuestLogData:Update()
 					end
 				end
 				
-				if (C_CampaignInfo.IsCampaignQuest(questID)) then
-					self.ZoneList[campaignZoneID]:AddQuest(self.QuestList[questID]);
-				end 
+--				if (C_CampaignInfo.IsCampaignQuest(questID)) then
+--					self.ZoneList[campaignZoneID]:AddQuest(self.QuestList[questID]);
+--				end
 			
 			end
 		end
@@ -3474,7 +3479,7 @@ function SQLQuestLogData:Update()
 	local tasksTable = GetTasksTable();
 	for i = 1, #tasksTable do
 		local questID = tasksTable[i];
-		if (QuestUtils_IsQuestWorldQuest(questID) and not IsWorldQuestWatched(questID) ) then
+		if (QuestUtils_IsQuestWorldQuest(questID) and not C_QuestLog.GetQuestWatchType(questID) ) then
 			local isInArea = GetTaskInfo(questID);
 			if (isInArea) then
 				table.insert(worldQuestIDs, questID);
@@ -3482,8 +3487,8 @@ function SQLQuestLogData:Update()
 		end
 	end
 	
-	for i = 1, GetNumWorldQuestWatches() do
-		local watchedWorldQuestID = GetWorldQuestWatchInfo(i);
+	for i = 1, C_QuestLog.GetNumWorldQuestWatches() do
+		local watchedWorldQuestID = C_QuestLog.GetQuestIDForWorldQuestWatchIndex(i);
 		if ( watchedWorldQuestID ) then
 			table.insert(worldQuestIDs, watchedWorldQuestID)
 		end
@@ -3780,7 +3785,7 @@ end
 
 function QuestTracker:QUEST_TURNED_IN(...)
 	local event, questID, xp, money = ...;
-	if ( IsQuestTask(questID)) then
+	if ( C_QuestLog.IsQuestTask(questID)) then
 		rewards = { };
 		local title = C_TaskQuest.GetQuestInfoByQuestID(questID);
 		if (title == nil) then
@@ -3999,6 +4004,7 @@ function QuestTracker:GetMinionHeaderButton(zoneInstance)
 	return objButton
 end
 
+--[[
 function QuestTracker:GetCampaignButton(zoneInstance)
 
 
@@ -4139,6 +4145,7 @@ function QuestTracker:GetCampaignButton(zoneInstance)
 	objButton:Show();
 	return objButton
 end
+]]--
 
 function QuestTracker:GetMinionQuestButton(questInstance)
 	local objButton = QuestTracker:GetMinionButton()
@@ -4336,9 +4343,9 @@ function QuestTracker:GetMinionQuestButton(questInstance)
 		end
 		
 		local strQuestTag = ""
-		if (self.QuestInstance.Frequency == 2) then
+		if (self.QuestInstance.Frequency == Enum.QuestFrequency.Daily) then
 			strQuestTag = strQuestTag .. DAILY .. " "			
-		elseif (self.QuestInstance.Frequency == 3) then
+		elseif (self.QuestInstance.Frequency == Enum.QuestFrequency.Weekly) then
 			strQuestTag = strQuestTag .. CALENDAR_REPEAT_WEEKLY .. " "
 		end				
 
@@ -4563,7 +4570,7 @@ end
 
 --Minion
 function QuestTracker:CreateMinionLayout()
-	fraMinionAnchor = SorhaQuestLog:doCreateFrame("FRAME","SQLQuestMinionAnchor",UIParent,db.MinionWidth,20,1,"BACKGROUND",1, db.MinionLocation.Point, UIParent, db.MinionLocation.RelativePoint, db.MinionLocation.X, db.MinionLocation.Y, 1)
+	fraMinionAnchor = SorhaQuestLog:doCreateFrame("FRAME","SQLQuestMinionAnchor",UIParent,db.MinionWidth,20,1,"BACKGROUND",1, db.MinionLocation.Point, UIParent, db.MinionLocation.RelativePoint, db.MinionLocation.X, db.MinionLocation.Y, 1, "BackdropTemplate")
 	
 	fraMinionAnchor:SetMovable(true)
 	fraMinionAnchor:SetClampedToScreen(true)
@@ -4609,7 +4616,7 @@ function QuestTracker:CreateMinionLayout()
 	fraMinionAnchor:SetBackdropBorderColor(0.5, 0.5, 0, 0)
 	
 	-- Quests Anchor
-	fraMinionAnchor.fraQuestsAnchor = SorhaQuestLog:doCreateLooseFrame("FRAME","SQLQuestsAnchor",fraMinionAnchor, fraMinionAnchor:GetWidth(),1,1,"LOW",1,1)
+	fraMinionAnchor.fraQuestsAnchor = SorhaQuestLog:doCreateLooseFrame("FRAME","SQLQuestsAnchor",fraMinionAnchor, fraMinionAnchor:GetWidth(),1,1,"LOW",1,1, "BackdropTemplate")
 	fraMinionAnchor.fraQuestsAnchor:SetPoint("TOPLEFT", fraMinionAnchor, "TOPLEFT", 0, 0);
 	fraMinionAnchor.fraQuestsAnchor:SetBackdropColor(0, 0, 0, 0)
 	fraMinionAnchor.fraQuestsAnchor:SetBackdropBorderColor(0,0,0,0)
@@ -4628,7 +4635,7 @@ function QuestTracker:CreateMinionLayout()
 	end
 	fraMinionAnchor.objFontString:SetShadowOffset(1, -1)
 
-	fraMinionAnchor.buttonShowHidden = SorhaQuestLog:doCreateLooseFrame("BUTTON","SQLShowHiddenButton",fraMinionAnchor,10,10,1,"LOW",1,1)
+	fraMinionAnchor.buttonShowHidden = SorhaQuestLog:doCreateLooseFrame("BUTTON","SQLShowHiddenButton",fraMinionAnchor,10,10,1,"LOW",1,1, "BackdropTemplate")
 	fraMinionAnchor.buttonShowHidden:SetPoint("TOPLEFT", fraMinionAnchor, "TOPLEFT", 3, -1);
 	fraMinionAnchor.buttonShowHidden:SetBackdrop({bgFile="Interface\\BUTTONS\\WHITE8X8", edgeFile="Interface\\BUTTONS\\WHITE8X8", tile=false, tileSize=0, edgeSize=1, insets={left=0, right=0, top=0, bottom=0}})
 	fraMinionAnchor.buttonShowHidden:SetBackdropColor(db.Colours.ShowHideButtonColour.r, db.Colours.ShowHideButtonColour.g, db.Colours.ShowHideButtonColour.b, db.Colours.ShowHideButtonColour.a)
@@ -4688,7 +4695,7 @@ function QuestTracker:CreateMinionLayout()
 	
 
 	
-	fraMinionAnchor.BorderFrame = SorhaQuestLog:doCreateFrame("FRAME","SQLQuestMinionBorder", fraMinionAnchor, db.MinionWidth,40,1,"BACKGROUND",1, "TOPLEFT", fraMinionAnchor, "TOPLEFT", 0, 0, 1)
+	fraMinionAnchor.BorderFrame = SorhaQuestLog:doCreateFrame("FRAME","SQLQuestMinionBorder", fraMinionAnchor, db.MinionWidth,40,1,"BACKGROUND",1, "TOPLEFT", fraMinionAnchor, "TOPLEFT", 0, 0, 1, "BackdropTemplate")
 	fraMinionAnchor.BorderFrame:SetBackdrop({bgFile = LSM:Fetch("background", dbCore.BackgroundTexture), tile = false, tileSize = 16,	edgeFile = LSM:Fetch("border", dbCore.BorderTexture), edgeSize = 16,	insets = {left = 5, right = 3, top = 3, bottom = 3}})
 	fraMinionAnchor.BorderFrame:SetBackdropColor(db.Colours.MinionBackGroundColour.r, db.Colours.MinionBackGroundColour.g, db.Colours.MinionBackGroundColour.b, db.Colours.MinionBackGroundColour.a)
 	fraMinionAnchor.BorderFrame:SetBackdropBorderColor(db.Colours.MinionBorderColour.r, db.Colours.MinionBorderColour.g, db.Colours.MinionBorderColour.b, db.Colours.MinionBorderColour.a)
@@ -4698,7 +4705,7 @@ function QuestTracker:CreateMinionLayout()
 
 	
 		
-	btnSearchQuests = CreateFrame('Button', "SQLSearchQuestsButton", UIParent, 'SecureActionButtonTemplate')
+	btnSearchQuests = CreateFrame('Button', "SQLSearchQuestsButton", UIParent, 'SecureActionButtonTemplate,BackdropTemplate')
 	btnSearchQuests:SetPoint("TOPRIGHT", fraMinionAnchor, "TOPRIGHT", 0, 2);
 	btnSearchQuests:SetHeight(24)
 	btnSearchQuests:SetWidth(100)
@@ -4755,8 +4762,8 @@ function QuestTracker:CreateMinionLayout()
 	btnSearchQuests.TextFrame.objFontString1:SetShadowColor(0.0, 0.0, 0.0, 1.0)
 	btnSearchQuests.TextFrame.objFontString1:SetText(strHeaderColour .. L["Click Until Gone"] .. "|r")
 	
-	fraMinionAnchor.CampaignButton = QuestTracker:GetMinionButton();
-	fraMinionAnchor.CampaignButton.CampaignTooltip = CreateFrame("FRAME","CampaignItemTooltip",UIParent,"WarCampaignTooltipTemplate")
+--	fraMinionAnchor.CampaignButton = QuestTracker:GetMinionButton();
+--	fraMinionAnchor.CampaignButton.CampaignTooltip = CreateFrame("FRAME","CampaignItemTooltip",UIParent,"WarCampaignTooltipTemplate")
 
 	self:CreateSmartItemButton()
 	
@@ -4867,7 +4874,7 @@ function QuestTracker:UpdateMinion()
 	end
 
 	-- Release all used buttons
-	fraMinionAnchor.CampaignButton:Hide();
+--	fraMinionAnchor.CampaignButton:Hide();
 	for k, objButton in pairs(tblUsingButtons) do
 		self:RecycleMinionButton(objButton)
 	end
@@ -4984,7 +4991,7 @@ function QuestTracker:UpdateMinion()
 	local tblItemButtons = {};
 
 	-- Zone/Quest buttons
-	local campaignId = C_CampaignInfo.GetCurrentCampaignID();
+--	local campaignId = C_CampaignInfo.GetCurrentCampaignID();
 	local objButton = nil
 	for k, ZoneInstance in zoneSortChooser(curQuestInfo.ZoneList) do
 		if (curQuestInfo.HaveTrackedQuests == false and db.AutoHideTitle == true and ZoneInstance.ID ~= campaignZoneID) then
@@ -5034,6 +5041,9 @@ function QuestTracker:UpdateMinion()
 					
 					intSpacingIncrease = objButton.objFontString1:GetHeight() + intHeaderOutlineOffset + db.Fonts.HeaderFontLineSpacing
 					objButton:SetHeight(intSpacingIncrease)
+					if ZoneInstance.Title and ZoneInstance.Title == strZone then -- leave a gap before current zone
+						intYPosition = intYPosition - 10
+					end
 					tinsert(tblUsingButtons, objButton)
 
 					objButton:SetPoint("TOPLEFT", fraMinionAnchor.fraQuestsAnchor, "TOPLEFT", 0, intYPosition - intHeaderOutlineOffset)
@@ -5395,13 +5405,13 @@ function QuestTracker:DisplayRightClickMenu(objButton)
 				info.text = QuestInstance.Title;
 				info.func = function()
 					if (QuestInstance.IsHidden == true) then
-						if (GetNumQuestWatches() >= 25) then
+						if (C_QuestLog.GetNumQuestWatches() >= 25) then
 							UIErrorsFrame:AddMessage(format(QUEST_WATCH_TOO_MANY, 25), 1.0, 0.1, 0.1, 1.0);
 						else
-							AddQuestWatch(QuestInstance.Index)
+							C_QuestLog.AddQuestWatch(QuestInstance.ID)
 						end
 					else
-						RemoveQuestWatch(QuestInstance.Index)
+						C_QuestLog.RemoveQuestWatch(QuestInstance.ID)
 					end
 					QuestTracker:UpdateMinionHandler()
 				end
@@ -5417,7 +5427,7 @@ function QuestTracker:DisplayRightClickMenu(objButton)
 				info.notCheckable = 1
 				info.func = function()
 					for k2, QuestInstance in pairs(curZone.QuestList) do
-						RemoveQuestWatch(QuestInstance.Index);
+						C_QuestLog.RemoveQuestWatch(QuestInstance.ID)
 					end
 					QuestTracker:UpdateMinionHandler()
 				end
@@ -5432,11 +5442,11 @@ function QuestTracker:DisplayRightClickMenu(objButton)
 				info.notCheckable = 1
 				info.func = function()
 					for k2, QuestInstance in pairs(curZone.QuestList) do
-						if (GetNumQuestWatches() >= 25) then
+						if (C_QuestLog.GetNumQuestWatches() >= 25) then
 							UIErrorsFrame:AddMessage(format(QUEST_WATCH_TOO_MANY, 25), 1.0, 0.1, 0.1, 1.0);
 							break
 						else
-							AddQuestWatch(QuestInstance.Index)
+							C_QuestLog.AddQuestWatch(QuestInstance.ID)
 						end
 					end
 					QuestTracker:UpdateMinionHandler()
@@ -5588,6 +5598,8 @@ function QuestTracker:doHandleZoneChange()
 	blnIgnoreUpdateEvents = true
 	
 	local blnNewZone = not(strZone == GetRealZoneText())
+	local strLeavingZone = strZone or ""
+	local strLeavingSubZone = strSubZone or ""
 	strZone = GetRealZoneText()
 	strSubZone = GetSubZoneText()
 	local blnChanged = false
@@ -5597,9 +5609,9 @@ function QuestTracker:doHandleZoneChange()
 			self:GetQuestLogInformation()
 		end
 
-		local numEntries, numQuests = GetNumQuestLogEntries();	
+		local numEntries, numQuests = C_QuestLog.GetNumQuestLogEntries();
 		for i = numEntries, 1, -1 do
-			local zoneKey = GetQuestLogTitle(i);
+			local zoneKey = C_QuestLog.GetTitleForLogIndex(i);
 			local zone = curQuestInfo.ZoneList[zoneKey];
 
 			if (zone) then
@@ -5609,7 +5621,7 @@ function QuestTracker:doHandleZoneChange()
 						blnChanged = true
 					end
 				else		
-					if (db.ZonesAndQuests.CollapseOnLeave == true and zone.IsCollapsed == false and blnNewZone) then				
+					if (db.ZonesAndQuests.CollapseOnLeave == true and zone.IsCollapsed == false and blnNewZone and (zone.Title == strLeavingZone or zone.Title == strLeavingSubZone)) then
 						zone:Collapse();
 						blnChanged = true
 					end				
@@ -5680,11 +5692,11 @@ function QuestTracker:OpenQuestLog(questInstance)
 		end
 		
 		
-		SetSuperTrackedQuestID(questInstance.ID)
+		C_SuperTrack.SetSuperTrackedQuestID(questInstance.ID)
 		
 		return
 	end
-	if ( IsQuestComplete(questInstance.ID) and GetQuestLogIsAutoComplete(questInstance.Index) ) then
+	if ( C_QuestLog.IsComplete(questInstance.ID) and GetQuestLogIsAutoComplete(questInstance.Index) ) then
 		AutoQuestPopupTracker_RemovePopUp(questInstance.ID);
 		ShowQuestComplete(questInstance.Index);
 	else
@@ -5726,7 +5738,7 @@ function QuestTracker:FindQuestGroup(questInstance)
 end
 
 function QuestTracker:TrackQuest(questInstance)
-	SetSuperTrackedQuestID(questInstance.ID)
+	C_SuperTrack.SetSuperTrackedQuestID(questInstance.ID)
 	
 	if (DugisGuideViewer and DugisGuideViewer.DugisArrow) then
 		DugisGuideViewer.DugisArrow:QuestPOIWaypoint({questID=questInstance.ID,worldQuest=questInstance.IsWorldQuest},true)
@@ -5805,14 +5817,14 @@ function QuestTracker:LinkQuest(questInstance)
 		ChatEdit_InsertLink(GetQuestLink(questInstance.ID))
 	else -- Track/untrack quest
 		if (db.ZonesAndQuests.AllowHiddenQuests == true) then
-			if (IsQuestWatched(questInstance.Index) == nil) then
-				if (GetNumQuestWatches() >= 25) then
+			if (C_QuestLog.GetQuestWatchType(questInstance.ID) == nil) then
+				if (C_QuestLog.GetNumQuestWatches() >= 25) then
 					UIErrorsFrame:AddMessage(format(QUEST_WATCH_TOO_MANY, 25), 1.0, 0.1, 0.1, 1.0);
 				else
-					AddQuestWatch(questInstance.Index)
+					C_QuestLog.AddQuestWatch(questInstance.ID)
 				end
 			else
-				RemoveQuestWatch(questInstance.Index)
+				C_QuestLog.RemoveQuestWatch(questInstance.ID)
 			end
 			QuestTracker:UpdateMinionHandler()
 		end
@@ -5820,41 +5832,41 @@ function QuestTracker:LinkQuest(questInstance)
 end
 
 function QuestTracker:AbandonQuest(questInstance)
-	local intCurrentSelectedIndex = GetQuestLogSelection()
-	SelectQuestLogEntry(questInstance.Index)
-	SetAbandonQuest()
+	local intCurrentSelectedID = C_QuestLog.GetSelectedQuest()
+	C_QuestLog.SetSelectedQuest(questInstance.ID)
+	C_QuestLog.SetAbandonQuest()
 	
 	if (db.ConfirmQuestAbandons == true) then
-		local items = GetAbandonQuestItems();
+		local items = C_QuestLog.GetAbandonQuestItems();
 		if ( items ) then
 			StaticPopup_Hide("ABANDON_QUEST");
-			StaticPopup_Show("ABANDON_QUEST_WITH_ITEMS", GetAbandonQuestName(), items);
+			StaticPopup_Show("ABANDON_QUEST_WITH_ITEMS", C_QuestLog.GetTitleForQuestID(C_QuestLog.GetAbandonQuest()), items);
 		else
 			StaticPopup_Hide("ABANDON_QUEST_WITH_ITEMS");
-			StaticPopup_Show("ABANDON_QUEST", GetAbandonQuestName());
+			StaticPopup_Show("ABANDON_QUEST", C_QuestLog.GetTitleForQuestID(C_QuestLog.GetAbandonQuest()));
 		end
 	else
 		DEFAULT_CHAT_FRAME:AddMessage("|cFFDF4444" .. L["Quest abandoned: "] .. questInstance.Title .. "|r")
 		PlaySound(SOUNDKIT.IG_QUEST_LOG_ABANDON_QUEST)
-		AbandonQuest()
+		C_QuestLog.AbandonQuest()
 	end
 
-	SelectQuestLogEntry(intCurrentSelectedIndex);
+	C_QuestLog.SetSelectedQuest(intCurrentSelectedID);
 end
 
 function QuestTracker:HideShowQuest(questInstance)
 	if (questInstance.IsWorldQuest) then
-		RemoveWorldQuestWatch(questInstance.ID)
+		C_QuestLog.RemoveWorldQuestWatch(questInstance.ID)
 	else
 		if (db.ZonesAndQuests.AllowHiddenQuests == true) then
-			if (IsQuestWatched(questInstance.Index) == nil) then
-				if (GetNumQuestWatches() >= 25) then
+			if (C_QuestLog.GetQuestWatchType(questInstance.ID) == nil) then
+				if (C_QuestLog.GetNumQuestWatches() >= 25) then
 					UIErrorsFrame:AddMessage(format(QUEST_WATCH_TOO_MANY, 25), 1.0, 0.1, 0.1, 1.0);
 				else
-					AddQuestWatch(questInstance.Index)
+					C_QuestLog.AddQuestWatch(questInstance.ID)
 				end
 			else
-				RemoveQuestWatch(questInstance.Index)
+				C_QuestLog.RemoveQuestWatch(questInstance.ID)
 			end
 			QuestTracker:UpdateMinionHandler()
 		end
