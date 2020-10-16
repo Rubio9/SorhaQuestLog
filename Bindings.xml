@@ -1,0 +1,6 @@
+<Bindings>
+	<Binding name="TOGGLE_SORHAQUESTLOG" header="SORHAQUESTLOG">
+		SorhaQuestLog:ToggleSorhaQuestLog()
+	</Binding>
+	<Binding name="CLICK SQLSmartItemButton:LeftButton"></Binding>
+</Bindings>

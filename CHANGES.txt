@@ -1,0 +1,10 @@
+------------------------------------------------------------------------
+r226 | Sorha2 | 2019-09-04 12:09:26 +0000 (Wed, 04 Sep 2019) | 2 lines
+Changed paths:
+   M /trunk/Core.lua
+   M /trunk/SorhaQuestLog.toc
+
+-ToC Update
+-Sound fix posted by bigdavek11
+------------------------------------------------------------------------
+
