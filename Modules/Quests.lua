@@ -2595,6 +2595,10 @@ function SQLQuest:Update(newIndex)
 		end
 	end
 
+	-- get an isComplete value like what GetQuestLogTitle() used to return: -1 = failed, nil = incomplete, 1 = complete
+	local isComplete = (C_QuestLog.IsComplete(self.ID) and 1 or 0) - (C_QuestLog.IsFailed(self.ID) and 1 or 0);
+	if isComplete == 0 then isComplete = nil end
+
 	if (self.IsWorldQuest) then
 		
 		local isInArea, isOnMap, numObjectives, taskName, displayAsObjective = GetTaskInfo(self.ID);
@@ -2605,7 +2609,7 @@ function SQLQuest:Update(newIndex)
 			self.TagID = ELITE
 		end
 		self.TagName = tagInfo and tagInfo.tagName or nil;
-		self.Index = C_QuestLog.GetLogIndexForQuestID(self.ID);
+		self.Index = C_QuestLog.GetLogIndexForQuestID(self.ID) or self.Index;
 		
 		self.Title = taskName;
 		if (self.Title == nil) then
@@ -2920,7 +2924,7 @@ function SQLQuest:Update(newIndex)
 
 		self.Distance = 0;
 		if (db.ZonesAndQuests.QuestSortOrder == "Proximity") then
-			local distanceSq, onContinent = GetDistanceSqToQuest(self.Index)
+			local distanceSq, onContinent = C_QuestLog.GetDistanceSqToQuest(self.Index)
 			if(onContinent) then
 				self.Distance =  distanceSq;
 			end
@@ -3629,7 +3633,6 @@ function SQLQuestLogData:CompleteCheck()
 				end
 			end
 			
-
 			if (quest.IsComplete == true) then
 				questComplete = true;
 				if (db.Notifications.ShowQuestCompletesAndFails) then
@@ -4362,7 +4365,7 @@ function QuestTracker:GetMinionQuestButton(questInstance)
 		if (intPartyMembers > 0) then
 			GameTooltip:AddLine(PARTY_QUEST_STATUS_ON, 0, 1, 0, 1);
 			for k = 1, intPartyMembers do
-				if (IsUnitOnQuest(self.QuestInstance.Index, "party" .. k)) then
+				if (C_QuestLog.IsUnitOnQuest("party" .. k, self.QuestInstance.ID)) then
 					GameTooltip:AddLine(UnitName("party" .. k), 1, 1, 1, 1);
 				end
 			end				
@@ -5643,7 +5646,7 @@ function QuestTracker:GetClosestItemQuest()
 			if (db.HideItemButtonsForCompletedQuests == false or (db.HideItemButtonsForCompletedQuests and QuestInstance.IsComplete == false and QuestInstance.IsFailed == false) or (QuestInstance.QuestItem.ShowWhenComplete and QuestInstance.IsComplete)) then
 		
 				QuestInstance.Distance = 0;
-				local distanceSq, onContinent = GetDistanceSqToQuest(QuestInstance.Index)
+				local distanceSq, onContinent = C_QuestLog.GetDistanceSqToQuest(QuestInstance.ID)
 				if(onContinent) then
 					QuestInstance.Distance =  distanceSq;
 				end	
@@ -5696,7 +5699,8 @@ function QuestTracker:OpenQuestLog(questInstance)
 		
 		return
 	end
-	if ( C_QuestLog.IsComplete(questInstance.ID) and GetQuestLogIsAutoComplete(questInstance.Index) ) then
+	local questInfo = C_QuestLog.GetInfo(questInstance.Index);
+	if ( C_QuestLog.IsComplete(questInstance.ID) and questInfo.isAutoComplete ) then
 		AutoQuestPopupTracker_RemovePopUp(questInstance.ID);
 		ShowQuestComplete(questInstance.Index);
 	else

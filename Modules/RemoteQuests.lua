@@ -522,13 +522,8 @@ function RemoteQuestsTracker:UpdateMinion()
 	local intYPosition = (db.Fonts.MinionTitleFontSize / db.MinionScale)
 	for i=1, numAutoQuestPopUps do
 		local questID, popUpType = GetAutoQuestPopUp(i);
-		local questTitle, level, suggestedGroup, isHeader, _, isComplete, isDaily = GetQuestLogTitle(GetQuestLogIndexByID(questID));
-		
-		if ( isComplete and isComplete > 0 ) then
-			isComplete = true;
-		else
-			isComplete = false;
-		end	
+		local questTitle = C_QuestLog.GetTitleForLogIndex(C_QuestLog.GetLogIndexForQuestID(questID));
+		local isComplete = C_QuestLog.IsComplete(questID);
 
 		if (questTitle and questTitle ~= "") then
 			local objButton = self:GetMinionButton();
@@ -540,7 +535,7 @@ function RemoteQuestsTracker:UpdateMinion()
 			if (isComplete and popUpType == "COMPLETE") then
 				objButton.ScrollChild.QuestionMark:Show();
 				objButton.ScrollChild.Exclamation:Hide();
-				if ( IsQuestTask(questID) ) then
+				if ( C_QuestLog.IsQuestTask(questID) ) then
 					objButton.ScrollChild.TopText:SetText(QUEST_WATCH_POPUP_CLICK_TO_COMPLETE_TASK);
 				else
 					objButton.ScrollChild.TopText:SetText(QUEST_WATCH_POPUP_CLICK_TO_COMPLETE);
